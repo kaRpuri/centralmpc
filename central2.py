@@ -11,7 +11,7 @@ import time
 # CONFIGURATION: Choose goal motion type here
 # ============================================================
 # Options: "static", "circular", "translating", "circular_translating"
-GOAL_MOTION_TYPE = "circular_translating"  # <-- CHANGE THIS TO SWITCH PATTERNS
+GOAL_MOTION_TYPE = "translating"  # <-- CHANGE THIS TO SWITCH PATTERNS
 # ============================================================
 
 class CentralizedMPC:

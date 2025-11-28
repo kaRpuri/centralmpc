@@ -30,6 +30,7 @@ def load_trajectories(traj_file):
         trajs = np.array(trajs)
     return trajs, N
 
+
 def load_goals(goals_file, N):
     import sys
     with open(goals_file, 'r') as f:
@@ -64,16 +65,24 @@ def compute_errors(trajs, goals, dt, time_limit):
 def count_collisions(trajs, dt, time_limit, collision_radius):
     N, _, T = trajs.shape
     max_steps = min(int(time_limit / dt), T)
+    in_collision = np.zeros((N, N), dtype=bool)
+    collision_events = set()
     collisions_per_timestep = []
     for t in range(max_steps):
-        count = 0
+        new_events = 0
         for i in range(N):
             for j in range(i+1, N):
                 dist = np.linalg.norm(trajs[i, :, t] - trajs[j, :, t])
                 if dist < collision_radius:
-                    count += 1
-        collisions_per_timestep.append(count)
-    return collisions_per_timestep
+                    if not in_collision[i, j]:
+                        # New collision event
+                        collision_events.add((i, j))
+                        in_collision[i, j] = True
+                        new_events += 1
+                else:
+                    in_collision[i, j] = False
+        collisions_per_timestep.append(new_events)
+    return collisions_per_timestep, len(collision_events)
 
 def main():
     # You may need to set dt to match your simulation
@@ -81,12 +90,11 @@ def main():
     trajs, N = load_trajectories(TRAJ_FILE)
     goals = load_goals(GOALS_FILE, N)
     avg_error, errors = compute_errors(trajs, goals, dt, TIME_LIMIT)
-    collisions_per_timestep = count_collisions(trajs, dt, TIME_LIMIT, COLLISION_RADIUS)
+    collisions_per_timestep, total_collisions = count_collisions(trajs, dt, TIME_LIMIT, COLLISION_RADIUS)
     time = np.arange(len(avg_error)) * dt
 
-    total_collisions = sum(collisions_per_timestep)
     print(f"Average error over first 10s: {np.mean(avg_error):.4f} m")
-    print(f"Number of collisions (<{COLLISION_RADIUS}m): {total_collisions}")
+    print(f"Number of collision events (<{COLLISION_RADIUS}m): {total_collisions}")
 
     # Create results directory (results, results1, results2, ...)
     base_dir = 'results'
