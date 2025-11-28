@@ -11,7 +11,7 @@ import time
 # CONFIGURATION: Choose goal motion type here
 # ============================================================
 # Options: "static", "circular", "translating", "circular_translating"
-GOAL_MOTION_TYPE = "translating"  # <-- CHANGE THIS TO SWITCH PATTERNS
+GOAL_MOTION_TYPE = "circular"  # <-- CHANGE THIS TO SWITCH PATTERNS
 # ============================================================
 
 class CentralizedMPC:
@@ -302,6 +302,9 @@ class Simulator:
         controls = None
         control_idx = 0
         current_time = 0.0
+
+        mpc_solve_count = 0
+        sim_start_time = time.time()
         
         print(f"\n{'='*60}")
         print(f"Centralized MPC - Goal Motion: {self.config['motion_type'].upper()}")
@@ -326,6 +329,8 @@ class Simulator:
                     )
                 
                 controls, success = self.mpc.solve(self.states, goal_trajectories)
+
+                mpc_solve_count += 1
                 
                 if not success:
                     self.consecutive_failures += 1
@@ -370,6 +375,11 @@ class Simulator:
                 print()
         
         print("\n✓ Simulation complete!\n")
+
+        sim_end_time = time.time()
+        sim_elapsed = sim_end_time - sim_start_time
+        avg_control_freq = mpc_solve_count / sim_elapsed if sim_elapsed > 0 else 0.0
+        print(f"Average control frequency: {avg_control_freq:.2f} Hz (MPC solves: {mpc_solve_count}, elapsed wall time: {sim_elapsed:.2f} s)")
         self._check_results()
         
     def _check_results(self):
