@@ -2,6 +2,9 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 
+# Import common functions from base analysis file
+from analyze_trajectories_base import load_trajectories, load_goals, compute_errors, count_collisions, compute_min_distances
+
 # Parameters
 COLLISION_RADIUS = 0.2
 TIME_LIMIT = 10.0  # seconds
@@ -10,95 +13,6 @@ REALLOCATION_METHODS = ['static', 'predictive', 'reactive']
 COLLISION_METHODS = ['BVC', 'on-demand']
 RUNS = range(1, 4)  # 1 through 3
 
-
-def load_trajectories(traj_file):
-    with open(traj_file, 'r') as f:
-        header = f.readline().split()
-        N = int(header[0])
-        pos_min = list(map(float, header[2:5]))
-        pos_max = list(map(float, header[5:8]))
-        # Initial positions (3 lines)
-        init_pos = np.array([list(map(float, f.readline().split())) for _ in range(3)])
-        # Goal positions (3 lines)
-        goal_pos = np.array([list(map(float, f.readline().split())) for _ in range(3)])
-        # Trajectories: N agents, each with 3 lines (x, y, z)
-        trajs = []
-        for i in range(N):
-            agent_traj = np.array([list(map(float, f.readline().split())) for _ in range(3)])
-            trajs.append(agent_traj)
-        # Shape: (N, 3, T)
-        trajs = np.array(trajs)
-    return trajs, N
-
-
-def load_goals(goals_file, N):
-    import sys
-    with open(goals_file, 'r') as f:
-        lines = f.readlines()
-    if len(lines) == 0:
-        print(f"Error: {goals_file} is empty. Please run the simulation to generate this file.")
-        sys.exit(1)
-    if len(lines) % (N * 3) != 0:
-        print(f"Error: {goals_file} does not have the expected number of lines. Check if the file is complete.")
-        sys.exit(1)
-    T = len(lines[0].split())
-    goals = np.zeros((N, 3, T))
-    for i in range(N):
-        for d in range(3):
-            vals = list(map(float, lines[i*3+d].split()))
-            if len(vals) != T:
-                print(f"Error: Line {i*3+d+1} in {goals_file} does not have the expected {T} values.")
-                sys.exit(1)
-            goals[i, d, :] = vals
-    return goals
-
-def compute_errors(trajs, goals, dt, time_limit):
-    N, _, T = trajs.shape
-    max_steps = min(int(time_limit / dt), T)
-    errors = np.zeros((N, max_steps))
-    for t in range(max_steps):
-        for i in range(N):
-            errors[i, t] = np.linalg.norm(trajs[i, :, t] - goals[i, :, t])
-    avg_error = np.mean(errors, axis=0)
-    return avg_error, errors
-
-def count_collisions(trajs, dt, time_limit, collision_radius):
-    N, _, T = trajs.shape
-    max_steps = min(int(time_limit / dt), T)
-    in_collision = np.zeros((N, N), dtype=bool)
-    collision_events = set()
-    collisions_per_timestep = []
-    for t in range(max_steps):
-        new_events = 0
-        for i in range(N):
-            for j in range(i+1, N):
-                dist = np.linalg.norm(trajs[i, :, t] - trajs[j, :, t])
-                if dist < collision_radius:
-                    if not in_collision[i, j]:
-                        # New collision event
-                        collision_events.add((i, j))
-                        in_collision[i, j] = True
-                        new_events += 1
-                else:
-                    in_collision[i, j] = False
-        collisions_per_timestep.append(new_events)
-    return collisions_per_timestep, len(collision_events)
-
-def compute_min_distances(trajs, dt, time_limit):
-    """Compute minimum distance between any two bots at each time step."""
-    N, _, T = trajs.shape
-    max_steps = min(int(time_limit / dt), T)
-    min_distances = []
-    
-    for t in range(max_steps):
-        distances = []
-        for i in range(N):
-            for j in range(i+1, N):
-                dist = np.linalg.norm(trajs[i, :, t] - trajs[j, :, t])
-                distances.append(dist)
-        min_distances.append(min(distances) if distances else np.inf)
-    
-    return min_distances
 
 def process_scenario_run(scenario, reallocation_method, collision_method, run):
     """Process a single scenario, reallocation method, collision method, and run combination. Returns metrics data."""

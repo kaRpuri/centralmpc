@@ -84,6 +84,22 @@ def count_collisions(trajs, dt, time_limit, collision_radius):
         collisions_per_timestep.append(new_events)
     return collisions_per_timestep, len(collision_events)
 
+def compute_min_distances(trajs, dt, time_limit):
+    """Compute minimum distance between any two bots at each time step."""
+    N, _, T = trajs.shape
+    max_steps = min(int(time_limit / dt), T)
+    min_distances = []
+    
+    for t in range(max_steps):
+        distances = []
+        for i in range(N):
+            for j in range(i+1, N):
+                dist = np.linalg.norm(trajs[i, :, t] - trajs[j, :, t])
+                distances.append(dist)
+        min_distances.append(min(distances) if distances else np.inf)
+    
+    return min_distances
+
 def main():
     # You may need to set dt to match your simulation
     dt = 0.01  # seconds
