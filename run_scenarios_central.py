@@ -16,6 +16,13 @@ RUNS = range(1, 4)  # 1 through 3 runs per scenario
 from central_mpc import CentralizedMPC, GoalManager, Simulator
 
 
+def load_distributed_config(scenario_num: int) -> Dict[str, Any]:
+    """Load the original distributed DMPC config for noise parameters"""
+    config_path = f"../online_dmpc/cpp/config/scenario_{scenario_num}.json"
+    with open(config_path, 'r') as f:
+        return json.load(f)
+
+
 def load_scenario_config(scenario_num: int) -> Dict[str, Any]:
     """Load scenario configuration from JSON file"""
     config_path = f"../online_dmpc/cpp/config/scenario_{scenario_num}.json"
@@ -100,16 +107,19 @@ def run_scenario_single_run(scenario_num: int, run_num: int) -> bool:
         # Slight variations in noise, initial conditions, or goal tolerance
         np.random.seed(42 + scenario_num * 100 + run_num)  # Reproducible but different seeds
         
-        # Add small noise to initial positions (±5cm)
-        initial_pos = np.array(central_config["initial_positions"])
-        noise_scale = 0.05  # 5cm standard deviation
-        position_noise = np.random.normal(0, noise_scale, initial_pos.shape)
-        central_config["initial_positions"] = (initial_pos + position_noise).tolist()
+        # Use exact noise parameters from distributed DMPC JSON configs
+        distributed_config = load_distributed_config(scenario_num)
+        std_position = distributed_config.get("std_position", 0.00228682)
+        std_velocity = distributed_config.get("std_velocity", 0.0109302)
         
-        # Vary noise level slightly between runs
-        base_noise = central_config.get("noise_std", 0.001)
-        noise_variations = [0.8, 1.0, 1.2]  # 80%, 100%, 120% of base noise
-        central_config["noise_std"] = base_noise * noise_variations[run_num - 1]
+        # Apply noise parameters to central config
+        central_config["std_position"] = std_position
+        central_config["std_velocity"] = std_velocity
+        
+        # Add small variations between runs (±10% noise variation)
+        noise_variations = [0.9, 1.0, 1.1]  # 90%, 100%, 110% of base noise
+        central_config["std_position"] = std_position * noise_variations[run_num - 1]
+        central_config["std_velocity"] = std_velocity * noise_variations[run_num - 1]
         
         # Vary goal tolerance slightly
         base_tolerance = central_config.get("goal_tolerance", 0.15)
@@ -119,7 +129,8 @@ def run_scenario_single_run(scenario_num: int, run_num: int) -> bool:
         print(f"  Motion type: {motion_type}")
         print(f"  Agents: {central_config['num_agents']}")
         print(f"  Duration: {central_config['sim_duration']}s")
-        print(f"  Noise std: {central_config['noise_std']:.6f}")
+        print(f"  Position noise std: {central_config['std_position']:.6f}")
+        print(f"  Velocity noise std: {central_config['std_velocity']:.6f}")
         print(f"  Goal tolerance: {central_config['goal_tolerance']:.3f}")
         
         # Create output directory inside experiments folder
@@ -144,10 +155,15 @@ def run_scenario_single_run(scenario_num: int, run_num: int) -> bool:
         sim.save_trajectories(traj_path)
         sim.save_goals(goals_path)
         
+        # Clean up config before saving (remove old parameters)
+        config_to_save = central_config.copy()
+        if "noise_std" in config_to_save:
+            del config_to_save["noise_std"]
+        
         # Save configuration for reference
         config_path = os.path.join(output_dir, 'config.json')
         with open(config_path, 'w') as f:
-            json.dump(central_config, f, indent=2)
+            json.dump(config_to_save, f, indent=2)
         
         elapsed = time.time() - start_time
         print(f"  ✓ Scenario {scenario_num}, run {run_num} completed in {elapsed:.1f}s")

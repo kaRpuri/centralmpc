@@ -278,7 +278,17 @@ class Simulator:
         self.goal_history = []
         self.time_history = []
         
-        self.noise_std = config.get('noise_std', 0.001)
+        # Use same noise parameters as distributed DMPC
+        self.std_position = config.get('std_position', 0.00228682)
+        self.std_velocity = config.get('std_velocity', 0.0109302)
+        
+        # Apply noise to initial states (like distributed DMPC)
+        for i in range(self.N):
+            pos_noise = np.random.normal(0, self.std_position, 3)
+            vel_noise = np.random.normal(0, self.std_velocity, 3)
+            self.states[i, :3] += pos_noise
+            self.states[i, 3:] += vel_noise
+        
         self.consecutive_failures = 0
         
     def _emergency_brake(self) -> np.ndarray:
@@ -350,9 +360,16 @@ class Simulator:
                 u = np.zeros((self.N, 3))
             
             for i in range(self.N):
-                noise = np.random.randn(6) * self.noise_std
-                self.states[i] = self.mpc.A @ self.states[i] + self.mpc.B @ u[i] + noise
+                # Apply dynamics without noise first (like distributed DMPC)
+                self.states[i] = self.mpc.A @ self.states[i] + self.mpc.B @ u[i]
                 
+                # Apply noise to position and velocity separately (matching distributed DMPC)
+                pos_noise = np.random.normal(0, self.std_position, 3)
+                vel_noise = np.random.normal(0, self.std_velocity, 3)
+                self.states[i, :3] += pos_noise
+                self.states[i, 3:] += vel_noise
+                
+                # Apply velocity constraint
                 vel_norm = np.linalg.norm(self.states[i, 3:6])
                 if vel_norm > self.mpc.vel_max:
                     self.states[i, 3:6] *= (self.mpc.vel_max / vel_norm)
