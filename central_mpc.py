@@ -8,10 +8,10 @@ from typing import Tuple
 import time
 
 # ============================================================
-# CONFIGURATION: Choose goal motion type here
+# CONFIGURATION: Goal motion types to test
 # ============================================================
-# Options: "static", "circular", "translating", "circular_translating"
-GOAL_MOTION_TYPE = "circular"  # <-- CHANGE THIS TO SWITCH PATTERNS
+# Available motion types: "static", "circular", "translating", "circular_translating"
+GOAL_MOTION_TYPES = ["static", "circular", "translating", "circular_translating"]
 # ============================================================
 
 class CentralizedMPC:
@@ -458,9 +458,9 @@ class Simulator:
 
 
 def main():
-    """Main entry point"""
+    """Main entry point - Loop through all goal motion types"""
     
-    config = {
+    base_config = {
         "num_agents": 4,
         "dim": 3,
         "horizon": 30,
@@ -482,7 +482,6 @@ def main():
         "noise_std": 0.001,
         
         # Goal motion parameters
-        "motion_type": GOAL_MOTION_TYPE,
         "circular_radius": 2.0,
         "circular_omega": 0.3,
         "translation_velocity": 0.5,
@@ -501,13 +500,58 @@ def main():
             [0.0, 2.0, 1.0]
         ]
     }
+
+    print("\n" + "="*80)
+    print("CENTRALIZED MPC - MULTI-PATTERN GOAL MOTION ANALYSIS")
+    print("="*80)
+    print(f"Testing {len(GOAL_MOTION_TYPES)} different goal motion patterns:")
+    for i, motion_type in enumerate(GOAL_MOTION_TYPES, 1):
+        print(f"  {i}. {motion_type}")
+    print("="*80 + "\n")
     
-    sim = Simulator(config)
-    sim.simulate()
-    sim.save_trajectories('trajectories.txt')
-    sim.save_goals('goals.txt')
+    # Loop through each goal motion type
+    for motion_idx, motion_type in enumerate(GOAL_MOTION_TYPES, 1):
+        print(f"\n{'='*20} PATTERN {motion_idx}/{len(GOAL_MOTION_TYPES)}: {motion_type.upper()} {'='*20}")
+        
+        # Create config for this motion type
+        config = base_config.copy()
+        config["motion_type"] = motion_type
+        
+        # Create output directory for this motion type
+        import os
+        output_dir = f"{motion_type}_central"
+        os.makedirs(output_dir, exist_ok=True)
+        
+        try:
+            # Run simulation for this motion type
+            sim = Simulator(config)
+            sim.simulate()
+            
+            # Save trajectories with motion type prefix
+            traj_path = os.path.join(output_dir, 'trajectories.txt')
+            goals_path = os.path.join(output_dir, 'goals.txt')
+            
+            sim.save_trajectories(traj_path)
+            sim.save_goals(goals_path)
+            
+            print(f"✓ {motion_type} pattern completed successfully!")
+            print(f"  Files saved to: {output_dir}/")
+            
+        except Exception as e:
+            print(f"✗ Error with {motion_type} pattern: {e}")
+            continue
     
-    print("\n✓ Done!\n")
+    print("\n" + "="*80)
+    print("ALL GOAL MOTION PATTERN SIMULATIONS COMPLETED!")
+    print("="*80)
+    print("Generated directories:")
+    for motion_type in GOAL_MOTION_TYPES:
+        output_dir = f"{motion_type}_central"
+        if os.path.exists(output_dir):
+            print(f"  ✓ {output_dir}/")
+        else:
+            print(f"  ✗ {output_dir}/ (failed)")
+    print("="*80 + "\n")
 
 
 if __name__ == '__main__':
