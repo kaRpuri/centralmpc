@@ -111,13 +111,13 @@ def load_distributed_data(scenario, reallocation_method, collision_method):
 def get_method_style(method_name):
     """Get plotting style (color, linestyle, marker) for each method."""
     styles = {
-        'Centralized MPC': {'color': 'black', 'linestyle': '-', 'linewidth': 3, 'marker': 'o', 'markersize': 4},
-        'Static/On-demand': {'color': 'blue', 'linestyle': '-', 'linewidth': 2, 'marker': 's', 'markersize': 3},
-        'Static/BVC': {'color': 'blue', 'linestyle': '--', 'linewidth': 2, 'marker': '^', 'markersize': 3},
-        'Reactive/On-demand': {'color': 'red', 'linestyle': '-', 'linewidth': 2, 'marker': 'o', 'markersize': 3},
-        'Reactive/BVC': {'color': 'red', 'linestyle': '--', 'linewidth': 2, 'marker': 'd', 'markersize': 3},
-        'Predictive/On-demand': {'color': 'green', 'linestyle': '-', 'linewidth': 2, 'marker': 'v', 'markersize': 3},
-        'Predictive/BVC': {'color': 'green', 'linestyle': '--', 'linewidth': 2, 'marker': '<', 'markersize': 3}
+        'Centralized MPC': {'color': 'black', 'linestyle': '-', 'linewidth': 3},
+        'Static/On-demand': {'color': 'blue', 'linestyle': '-', 'linewidth': 2},
+        'Static/BVC': {'color': 'blue', 'linestyle': '--', 'linewidth': 2},
+        'Reactive/On-demand': {'color': 'red', 'linestyle': '-', 'linewidth': 2},
+        'Reactive/BVC': {'color': 'red', 'linestyle': '--', 'linewidth': 2},
+        'Predictive/On-demand': {'color': 'green', 'linestyle': '-', 'linewidth': 2},
+        'Predictive/BVC': {'color': 'green', 'linestyle': '--', 'linewidth': 2}
     }
     return styles.get(method_name, {'color': 'gray', 'linestyle': '-', 'linewidth': 1})
 

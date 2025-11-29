@@ -9,6 +9,9 @@ import numpy as np
 from typing import Dict, Any
 import time
 
+# Parameters
+RUNS = range(1, 4)  # 1 through 3 runs per scenario
+
 # Import classes from central_mpc.py
 from central_mpc import CentralizedMPC, GoalManager, Simulator
 
@@ -79,28 +82,52 @@ def convert_config_for_central_mpc(scenario_config: Dict[str, Any], scenario_num
     return central_config
 
 
-def run_scenario(scenario_num: int) -> bool:
-    """Run a single scenario with centralized MPC"""
+def run_scenario_single_run(scenario_num: int, run_num: int) -> bool:
+    """Run a single run of a scenario with centralized MPC"""
     
-    print(f"\n{'='*20} SCENARIO {scenario_num} {'='*20}")
+    print(f"\n{'='*15} SCENARIO {scenario_num} - RUN {run_num} {'='*15}")
     
     try:
         # Load scenario configuration
         scenario_config = load_scenario_config(scenario_num)
-        print(f"✓ Loaded config for scenario {scenario_num}")
+        print(f"✓ Loaded config for scenario {scenario_num}, run {run_num}")
         
         # Convert to central MPC format
         central_config = convert_config_for_central_mpc(scenario_config, scenario_num)
         motion_type = central_config["motion_type"]
+        
+        # Add run-specific variations for statistical validity
+        # Slight variations in noise, initial conditions, or goal tolerance
+        np.random.seed(42 + scenario_num * 100 + run_num)  # Reproducible but different seeds
+        
+        # Add small noise to initial positions (±5cm)
+        initial_pos = np.array(central_config["initial_positions"])
+        noise_scale = 0.05  # 5cm standard deviation
+        position_noise = np.random.normal(0, noise_scale, initial_pos.shape)
+        central_config["initial_positions"] = (initial_pos + position_noise).tolist()
+        
+        # Vary noise level slightly between runs
+        base_noise = central_config.get("noise_std", 0.001)
+        noise_variations = [0.8, 1.0, 1.2]  # 80%, 100%, 120% of base noise
+        central_config["noise_std"] = base_noise * noise_variations[run_num - 1]
+        
+        # Vary goal tolerance slightly
+        base_tolerance = central_config.get("goal_tolerance", 0.15)
+        tolerance_variations = [0.9, 1.0, 1.1]  # 90%, 100%, 110% of base tolerance
+        central_config["goal_tolerance"] = base_tolerance * tolerance_variations[run_num - 1]
+        
         print(f"  Motion type: {motion_type}")
         print(f"  Agents: {central_config['num_agents']}")
         print(f"  Duration: {central_config['sim_duration']}s")
-        print(f"  Workspace: {central_config['pos_min']} to {central_config['pos_max']}")
+        print(f"  Noise std: {central_config['noise_std']:.6f}")
+        print(f"  Goal tolerance: {central_config['goal_tolerance']:.3f}")
         
         # Create output directory inside experiments folder
         experiments_dir = "experiments"
         os.makedirs(experiments_dir, exist_ok=True)
-        output_dir = os.path.join(experiments_dir, f"scenario_{scenario_num}_central")
+        scenario_dir = os.path.join(experiments_dir, f"scenario_{scenario_num}_central")
+        os.makedirs(scenario_dir, exist_ok=True)
+        output_dir = os.path.join(scenario_dir, f"run_{run_num}")
         os.makedirs(output_dir, exist_ok=True)
         
         # Run simulation
@@ -123,14 +150,32 @@ def run_scenario(scenario_num: int) -> bool:
             json.dump(central_config, f, indent=2)
         
         elapsed = time.time() - start_time
-        print(f"  ✓ Scenario {scenario_num} completed in {elapsed:.1f}s")
+        print(f"  ✓ Scenario {scenario_num}, run {run_num} completed in {elapsed:.1f}s")
         print(f"    Results saved to: {output_dir}/")
         
         return True
         
     except Exception as e:
-        print(f"  ✗ Error in scenario {scenario_num}: {e}")
+        print(f"  ✗ Error in scenario {scenario_num}, run {run_num}: {e}")
         return False
+
+
+def run_scenario(scenario_num: int) -> bool:
+    """Run all runs for a single scenario with centralized MPC"""
+    
+    print(f"\n{'='*20} SCENARIO {scenario_num} {'='*20}")
+    
+    successful_runs = 0
+    total_runs = len(RUNS)
+    
+    for run_num in RUNS:
+        if run_scenario_single_run(scenario_num, run_num):
+            successful_runs += 1
+    
+    success_rate = successful_runs / total_runs
+    print(f"\n✓ Scenario {scenario_num} summary: {successful_runs}/{total_runs} runs successful ({success_rate:.1%})")
+    
+    return successful_runs > 0  # Consider scenario successful if at least one run succeeded
 
 
 def main():
@@ -144,6 +189,7 @@ def main():
     print("  Scenario 7:    Translating goals") 
     print("  Scenario 8:    Circular goals")
     print("  Scenario 9:    Circular + Translating goals")
+    print(f"Each scenario will be run {len(RUNS)} times for statistical validity")
     print("="*80)
     
     scenarios = list(range(1, 10))  # Scenarios 1 through 9
@@ -172,16 +218,17 @@ def main():
     
     print("Generated directories:")
     for scenario_num in scenarios:
-        output_dir = os.path.join("experiments", f"scenario_{scenario_num}_central")
-        if os.path.exists(output_dir):
-            print(f"  ✓ {output_dir}/")
+        scenario_dir = os.path.join("experiments", f"scenario_{scenario_num}_central")
+        if os.path.exists(scenario_dir):
+            run_count = len([d for d in os.listdir(scenario_dir) if d.startswith('run_') and os.path.isdir(os.path.join(scenario_dir, d))])
+            print(f"  ✓ {scenario_dir}/ ({run_count} runs)")
         else:
-            print(f"  ✗ {output_dir}/ (failed)")
+            print(f"  ✗ {scenario_dir}/ (failed)")
     
-    print("\nEach directory contains:")
+    print("\nEach run directory contains:")
     print("  - trajectories.txt: Agent trajectories")
     print("  - goals.txt: Time-varying goal trajectories")
-    print("  - config.json: Configuration used for this scenario")
+    print("  - config.json: Configuration used for this run")
     
     print("="*80)
     
