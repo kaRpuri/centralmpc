@@ -399,6 +399,8 @@ class Simulator:
         print(f"Average control frequency: {avg_control_freq:.2f} Hz (MPC solves: {mpc_solve_count}, elapsed wall time: {sim_elapsed:.2f} s)")
         self._check_results()
         
+        return True  # Simulation completed successfully
+        
     def _check_results(self):
         """Check results"""
         final_states = self.state_history[-1]
