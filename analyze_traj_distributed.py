@@ -6,7 +6,8 @@ import matplotlib.pyplot as plt
 COLLISION_RADIUS = 0.2
 TIME_LIMIT = 10.0  # seconds
 SCENARIOS = range(1, 10)  # 1 through 9
-METHODS = ['static', 'predictive', 'reactive']
+REALLOCATION_METHODS = ['static', 'predictive', 'reactive']
+COLLISION_METHODS = ['BVC', 'on-demand']
 RUNS = range(1, 4)  # 1 through 3
 
 
@@ -83,10 +84,10 @@ def count_collisions(trajs, dt, time_limit, collision_radius):
         collisions_per_timestep.append(new_events)
     return collisions_per_timestep, len(collision_events)
 
-def process_scenario_run(scenario, method, run):
-    """Process a single scenario, method, and run combination. Returns metrics data."""
-    traj_file = f'../online_dmpc/cpp/results/experiments/scenario_{scenario}/{method}/run_{run}/trajectories.txt'
-    goals_file = f'../online_dmpc/cpp/results/experiments/scenario_{scenario}/{method}/run_{run}/goals.txt'
+def process_scenario_run(scenario, reallocation_method, collision_method, run):
+    """Process a single scenario, reallocation method, collision method, and run combination. Returns metrics data."""
+    traj_file = f'../online_dmpc/cpp/results/experiments/scenario_{scenario}/{reallocation_method}/{collision_method}/run_{run}/trajectories.txt'
+    goals_file = f'../online_dmpc/cpp/results/experiments/scenario_{scenario}/{reallocation_method}/{collision_method}/run_{run}/goals.txt'
     
     # Check if files exist
     if not os.path.exists(traj_file) or not os.path.exists(goals_file):
@@ -107,44 +108,49 @@ def process_scenario_run(scenario, method, run):
             'dt': dt
         }
     except Exception as e:
-        print(f"Error processing scenario {scenario}, method {method}, run {run}: {e}")
+        print(f"Error processing scenario {scenario}, {reallocation_method}/{collision_method}, run {run}: {e}")
         return None
 
 def process_scenario(scenario):
     """Process all methods and runs for a single scenario, create combined plots."""
     print(f"\nProcessing Scenario {scenario}...")
     
-    # Store data for all methods
+    # Store data for all method combinations
     method_data = {}
     
-    for method in METHODS:
-        run_data = []
-        for run in RUNS:
-            data = process_scenario_run(scenario, method, run)
-            if data is not None:
-                run_data.append(data)
-        
-        if run_data:
-            # Average across runs
-            avg_errors = np.array([data['avg_error'] for data in run_data])
-            collisions_per_timestep = np.array([data['collisions_per_timestep'] for data in run_data])
+    for realloc_method in REALLOCATION_METHODS:
+        for collision_method in COLLISION_METHODS:
+            method_key = f"{realloc_method}_{collision_method}"
+            run_data = []
             
-            # Ensure all arrays have the same length by taking the minimum
-            min_length = min(len(arr) for arr in avg_errors)
-            avg_errors = np.array([arr[:min_length] for arr in avg_errors])
-            collisions_per_timestep = np.array([arr[:min_length] for arr in collisions_per_timestep])
+            for run in RUNS:
+                data = process_scenario_run(scenario, realloc_method, collision_method, run)
+                if data is not None:
+                    run_data.append(data)
             
-            method_data[method] = {
-                'avg_error_mean': np.mean(avg_errors, axis=0),
-                'avg_error_std': np.std(avg_errors, axis=0),
-                'collisions_mean': np.mean(collisions_per_timestep, axis=0),
-                'collisions_std': np.std(collisions_per_timestep, axis=0),
-                'total_collisions_mean': np.mean([data['total_collisions'] for data in run_data]),
-                'mean_error': np.mean([data['mean_error'] for data in run_data]),
-                'dt': run_data[0]['dt']
-            }
-            print(f"  {method.capitalize()}: Avg error = {method_data[method]['mean_error']:.4f} m, "
-                  f"Total collisions = {method_data[method]['total_collisions_mean']:.1f}")
+            if run_data:
+                # Average across runs
+                avg_errors = np.array([data['avg_error'] for data in run_data])
+                collisions_per_timestep = np.array([data['collisions_per_timestep'] for data in run_data])
+                
+                # Ensure all arrays have the same length by taking the minimum
+                min_length = min(len(arr) for arr in avg_errors)
+                avg_errors = np.array([arr[:min_length] for arr in avg_errors])
+                collisions_per_timestep = np.array([arr[:min_length] for arr in collisions_per_timestep])
+                
+                method_data[method_key] = {
+                    'avg_error_mean': np.mean(avg_errors, axis=0),
+                    'avg_error_std': np.std(avg_errors, axis=0),
+                    'collisions_mean': np.mean(collisions_per_timestep, axis=0),
+                    'collisions_std': np.std(collisions_per_timestep, axis=0),
+                    'total_collisions_mean': np.mean([data['total_collisions'] for data in run_data]),
+                    'mean_error': np.mean([data['mean_error'] for data in run_data]),
+                    'dt': run_data[0]['dt'],
+                    'reallocation': realloc_method,
+                    'collision': collision_method
+                }
+                print(f"  {realloc_method.capitalize()}/{collision_method}: Avg error = {method_data[method_key]['mean_error']:.4f} m, "
+                      f"Total collisions = {method_data[method_key]['total_collisions_mean']:.1f}")
     
     if not method_data:
         print(f"  No data found for scenario {scenario}")
@@ -160,46 +166,61 @@ def process_scenario(scenario):
     time = np.arange(len(first_method['avg_error_mean'])) * dt
     
     # Plot combined average error
-    plt.figure(figsize=(10, 6))
-    colors = {'static': 'blue', 'predictive': 'green', 'reactive': 'red'}
+    plt.figure(figsize=(12, 8))
     
-    for method, data in method_data.items():
-        plt.plot(time, data['avg_error_mean'], label=f'{method.capitalize()}', 
-                color=colors.get(method, 'black'), linewidth=2)
+    # Define colors and line styles for different method combinations
+    realloc_colors = {'static': 'blue', 'predictive': 'green', 'reactive': 'red'}
+    collision_styles = {'BVC': '-', 'on-demand': '--'}
+    
+    for method_key, data in method_data.items():
+        realloc = data['reallocation']
+        collision = data['collision']
+        color = realloc_colors.get(realloc, 'black')
+        linestyle = collision_styles.get(collision, '-')
+        label = f'{realloc.capitalize()}/{collision}'
+        
+        plt.plot(time, data['avg_error_mean'], label=label, 
+                color=color, linestyle=linestyle, linewidth=2)
         plt.fill_between(time, 
                         data['avg_error_mean'] - data['avg_error_std'],
                         data['avg_error_mean'] + data['avg_error_std'],
-                        alpha=0.3, color=colors.get(method, 'black'))
+                        alpha=0.2, color=color)
     
     plt.xlabel('Time (s)')
     plt.ylabel('Average Distance to Goal (m)')
     plt.title(f'Average Goal Error - Scenario {scenario} (Averaged over {len(RUNS)} runs)')
     plt.grid(True, alpha=0.3)
-    plt.legend()
+    plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
     plt.tight_layout()
     error_plot_path = os.path.join(results_dir, f'combined_average_error_scenario_{scenario}.png')
     plt.savefig(error_plot_path, dpi=150, bbox_inches='tight')
     plt.close()
     
     # Plot combined cumulative collisions
-    plt.figure(figsize=(10, 6))
+    plt.figure(figsize=(12, 8))
     
-    for method, data in method_data.items():
+    for method_key, data in method_data.items():
+        realloc = data['reallocation']
+        collision = data['collision']
+        color = realloc_colors.get(realloc, 'black')
+        linestyle = collision_styles.get(collision, '-')
+        label = f'{realloc.capitalize()}/{collision}'
+        
         cumulative_mean = np.cumsum(data['collisions_mean'])
         cumulative_std = np.cumsum(data['collisions_std'])
         
-        plt.plot(time, cumulative_mean, label=f'{method.capitalize()}', 
-                color=colors.get(method, 'black'), linewidth=2)
+        plt.plot(time, cumulative_mean, label=label, 
+                color=color, linestyle=linestyle, linewidth=2)
         plt.fill_between(time, 
                         cumulative_mean - cumulative_std,
                         cumulative_mean + cumulative_std,
-                        alpha=0.3, color=colors.get(method, 'black'))
+                        alpha=0.2, color=color)
     
     plt.xlabel('Time (s)')
     plt.ylabel('Cumulative Collisions')
     plt.title(f'Cumulative Collisions (<{COLLISION_RADIUS:.2f}m) - Scenario {scenario} (Averaged over {len(RUNS)} runs)')
     plt.grid(True, alpha=0.3)
-    plt.legend()
+    plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
     plt.tight_layout()
     collisions_plot_path = os.path.join(results_dir, f'combined_cumulative_collisions_scenario_{scenario}.png')
     plt.savefig(collisions_plot_path, dpi=150, bbox_inches='tight')
@@ -215,7 +236,8 @@ def main():
     
     print(f"Processing {total_scenarios} scenarios...")
     print(f"Scenarios: {list(SCENARIOS)}")
-    print(f"Methods: {METHODS}")
+    print(f"Reallocation Methods: {REALLOCATION_METHODS}")
+    print(f"Collision Methods: {COLLISION_METHODS}")
     print(f"Runs to average: {list(RUNS)}")
     print("="*50)
     
@@ -231,7 +253,7 @@ def main():
     print(f"Successfully processed: {successful}")
     print(f"Failed/Skipped: {processed - successful}")
     print(f"Results saved in: ./results/")
-    print(f"Note: Each scenario now has 2 combined plots (error + collisions) instead of {len(METHODS) * len(RUNS) * 2} individual plots")
+    print(f"Note: Each scenario now has 2 combined plots (error + collisions) instead of {len(REALLOCATION_METHODS) * len(COLLISION_METHODS) * len(RUNS) * 2} individual plots")
 
 if __name__ == "__main__":
     main()
