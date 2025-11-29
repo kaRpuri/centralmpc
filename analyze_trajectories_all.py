@@ -22,35 +22,63 @@ COLLISION_RADIUS = 0.2
 TIME_LIMIT = 10.0  # seconds
 SCENARIOS = range(1, 10)  # 1 through 9
 RUNS = range(1, 4)  # 1 through 3
+RUNS = range(1, 4)  # 1 through 3
 
 
 def load_centralized_data(scenario):
-    """Load centralized MPC data for a scenario."""
-    traj_file = f'experiments/scenario_{scenario}_central/trajectories.txt'
-    goals_file = f'experiments/scenario_{scenario}_central/goals.txt'
+    """Load centralized MPC data for a scenario (averaged over multiple runs)."""
+    run_data = []
     
-    if not os.path.exists(traj_file) or not os.path.exists(goals_file):
-        return None
-    
-    try:
-        dt = 0.01  # seconds
-        trajs, N = load_trajectories(traj_file)
-        goals = load_goals(goals_file, N)
-        avg_error, errors = compute_errors(trajs, goals, dt, TIME_LIMIT)
-        collisions_per_timestep, total_collisions = count_collisions(trajs, dt, TIME_LIMIT, COLLISION_RADIUS)
-        min_distances = compute_min_distances(trajs, dt, TIME_LIMIT)
+    for run in RUNS:
+        traj_file = f'experiments/scenario_{scenario}_central/run_{run}/trajectories.txt'
+        goals_file = f'experiments/scenario_{scenario}_central/run_{run}/goals.txt'
         
-        return {
-            'avg_error': avg_error,
-            'collisions_per_timestep': collisions_per_timestep,
-            'min_distances': min_distances,
-            'total_collisions': total_collisions,
-            'mean_error': np.mean(avg_error),
-            'dt': dt
-        }
-    except Exception as e:
-        print(f"Error loading centralized data for scenario {scenario}: {e}")
+        if os.path.exists(traj_file) and os.path.exists(goals_file):
+            try:
+                dt = 0.01  # seconds
+                trajs, N = load_trajectories(traj_file)
+                goals = load_goals(goals_file, N)
+                avg_error, errors = compute_errors(trajs, goals, dt, TIME_LIMIT)
+                collisions_per_timestep, total_collisions = count_collisions(trajs, dt, TIME_LIMIT, COLLISION_RADIUS)
+                min_distances = compute_min_distances(trajs, dt, TIME_LIMIT)
+                
+                run_data.append({
+                    'avg_error': avg_error,
+                    'collisions_per_timestep': collisions_per_timestep,
+                    'min_distances': min_distances,
+                    'total_collisions': total_collisions,
+                    'mean_error': np.mean(avg_error),
+                    'dt': dt
+                })
+            except Exception as e:
+                print(f"Error loading centralized data for scenario {scenario}, run {run}: {e}")
+    
+    if not run_data:
         return None
+    
+    # Average across runs
+    avg_errors = np.array([data['avg_error'] for data in run_data])
+    collisions_per_timestep = np.array([data['collisions_per_timestep'] for data in run_data])
+    min_distances_data = np.array([data['min_distances'] for data in run_data])
+    
+    # Ensure all arrays have the same length
+    min_length = min(len(arr) for arr in avg_errors)
+    avg_errors = np.array([arr[:min_length] for arr in avg_errors])
+    collisions_per_timestep = np.array([arr[:min_length] for arr in collisions_per_timestep])
+    min_distances_data = np.array([arr[:min_length] for arr in min_distances_data])
+    
+    return {
+        'avg_error_mean': np.mean(avg_errors, axis=0),
+        'avg_error_std': np.std(avg_errors, axis=0),
+        'collisions_mean': np.mean(collisions_per_timestep, axis=0),
+        'collisions_std': np.std(collisions_per_timestep, axis=0),
+        'min_distances_mean': np.mean(min_distances_data, axis=0),
+        'min_distances_std': np.std(min_distances_data, axis=0),
+        'total_collisions_mean': np.mean([data['total_collisions'] for data in run_data]),
+        'mean_error': np.mean([data['mean_error'] for data in run_data]),
+        'dt': run_data[0]['dt'],
+        'num_runs': len(run_data)
+    }
 
 
 def load_distributed_data(scenario, reallocation_method, collision_method):
@@ -147,18 +175,8 @@ def process_scenario(scenario):
     if INCLUDE_CENTRALIZED_MPC:
         central_data = load_centralized_data(scenario)
         if central_data:
-            method_data['Centralized MPC'] = {
-                'avg_error_mean': central_data['avg_error'],
-                'avg_error_std': np.zeros_like(central_data['avg_error']),  # No std for single run
-                'collisions_mean': central_data['collisions_per_timestep'],
-                'collisions_std': np.zeros_like(central_data['collisions_per_timestep']),
-                'min_distances_mean': central_data['min_distances'],
-                'min_distances_std': np.zeros_like(central_data['min_distances']),
-                'total_collisions_mean': central_data['total_collisions'],
-                'mean_error': central_data['mean_error'],
-                'dt': central_data['dt']
-            }
-            print(f"    ✓ Centralized MPC: Avg error = {central_data['mean_error']:.4f} m, Collisions = {central_data['total_collisions']}")
+            method_data['Centralized MPC'] = central_data
+            print(f"    ✓ Centralized MPC: Avg error = {central_data['mean_error']:.4f} m, Collisions = {central_data['total_collisions_mean']:.1f} (n={central_data['num_runs']})")
     
     # Load distributed DMPC data for enabled methods
     method_configs = [
@@ -199,7 +217,7 @@ def process_scenario(scenario):
         style = get_method_style(method_name)
         plt.plot(time, data['avg_error_mean'], label=method_name, **style)
         
-        # Add error bands for methods with multiple runs
+        # Add error bands for all methods (both distributed and centralized now have multiple runs)
         if np.any(data['avg_error_std'] > 0):
             plt.fill_between(time,
                             data['avg_error_mean'] - data['avg_error_std'],
@@ -224,7 +242,7 @@ def process_scenario(scenario):
         cumulative_mean = np.cumsum(data['collisions_mean'])
         plt.plot(time, cumulative_mean, label=method_name, **style)
         
-        # Add error bands for methods with multiple runs
+        # Add error bands for all methods (both distributed and centralized now have multiple runs)
         if np.any(data['collisions_std'] > 0):
             cumulative_std = np.cumsum(data['collisions_std'])
             plt.fill_between(time,
@@ -249,7 +267,7 @@ def process_scenario(scenario):
         style = get_method_style(method_name)
         plt.plot(time, data['min_distances_mean'], label=method_name, **style)
         
-        # Add error bands for methods with multiple runs
+        # Add error bands for all methods (both distributed and centralized now have multiple runs)
         if np.any(data['min_distances_std'] > 0):
             plt.fill_between(time,
                             data['min_distances_mean'] - data['min_distances_std'],
@@ -300,7 +318,7 @@ def create_summary_comparison():
             if central_data:
                 scenario_metrics['Centralized MPC'] = {
                     'mean_error': central_data['mean_error'],
-                    'total_collisions': central_data['total_collisions']
+                    'total_collisions': central_data['total_collisions_mean']
                 }
         
         # Distributed DMPC methods
