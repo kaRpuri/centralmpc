@@ -1,0 +1,74 @@
+{
+  "num_agents": 4,
+  "dim": 3,
+  "horizon": 30,
+  "dt": 0.01,
+  "dt_plan": 0.1,
+  "sim_duration": 70,
+  "pos_min": [
+    -10.5,
+    -10.5,
+    0.2
+  ],
+  "pos_max": [
+    10.5,
+    10.5,
+    2.0
+  ],
+  "vel_max": 1.5,
+  "acc_max": 1.0,
+  "Q_pos": 50.0,
+  "Q_vel": 1.0,
+  "R": 0.1,
+  "Q_terminal": 20.0,
+  "goal_tolerance": 0.15,
+  "noise_std": 0.00228682,
+  "motion_type": "circular_translating",
+  "circular_radius": 1.5,
+  "circular_omega": 0.3,
+  "translation_velocity": 0.15,
+  "initial_positions": [
+    [
+      0.5,
+      0.5,
+      1.0
+    ],
+    [
+      3.5,
+      0.5,
+      1.0
+    ],
+    [
+      3.5,
+      3.5,
+      1.0
+    ],
+    [
+      0.5,
+      3.5,
+      1.0
+    ]
+  ],
+  "goal_positions": [
+    [
+      3.5,
+      3.0,
+      1.0
+    ],
+    [
+      1.0,
+      3.5,
+      1.0
+    ],
+    [
+      1.0,
+      0.5,
+      1.0
+    ],
+    [
+      3.0,
+      0.5,
+      1.0
+    ]
+  ]
+}
