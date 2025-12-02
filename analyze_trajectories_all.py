@@ -20,7 +20,7 @@ INCLUDE_PREDICTIVE_BVC = False
 # Parameters
 COLLISION_RADIUS = 0.2
 TIME_LIMIT = 10.0  # seconds
-SCENARIOS = [1, 2, 3, 7, 8, 9]  # Exclude scenarios 4, 5, 6 as they are redundant
+SCENARIOS = [1, 3, 7, 9] 
 RUNS = range(1, 4)  # 1 through 3
 
 
@@ -417,237 +417,115 @@ def create_numerical_comparison():
     """Create comprehensive numerical comparison and export to CSV/table format."""
     print(f"\nCreating numerical comparison analysis...")
     
-    # Collect all data for static goal scenarios (1-3, excluding 4-6 as redundant)
-    static_scenarios = [1, 2, 3]
-    comparison_data = []
+    # Collect all data for static scenarios (1-6) and dynamic scenarios (7-9)
+    static_scenarios = [1, 2, 3, 4, 5, 6]
+    dynamic_scenarios = [7, 8, 9]
     
-    for scenario in static_scenarios:
-        scenario_data = {'scenario': scenario}
+    def analyze_scenario_group(scenarios, group_name):
+        """Analyze a group of scenarios and return comparison data."""
+        comparison_data = []
         
-        # Load centralized data
-        if INCLUDE_CENTRALIZED_MPC:
-            central_data = load_centralized_data(scenario)
-            if central_data:
-                scenario_data['central_error'] = central_data['mean_error']
-                scenario_data['central_collisions'] = central_data['total_collisions_mean']
-                scenario_data['central_final_error'] = central_data['avg_error_mean'][-1] if len(central_data['avg_error_mean']) > 0 else np.nan
-                scenario_data['central_min_distance'] = np.mean(central_data['min_distances_mean'])
+        for scenario in scenarios:
+            scenario_data = {'scenario': scenario}
+            
+            # Load centralized data
+            if INCLUDE_CENTRALIZED_MPC:
+                central_data = load_centralized_data(scenario)
+                if central_data:
+                    scenario_data['central_error'] = central_data['mean_error']
+                    scenario_data['central_collisions'] = central_data['total_collisions_mean']
+                    scenario_data['central_final_error'] = central_data['avg_error_mean'][-1] if len(central_data['avg_error_mean']) > 0 else np.nan
+                    scenario_data['central_min_distance'] = np.mean(central_data['min_distances_mean'])
+            
+            # Load distributed data
+            if INCLUDE_STATIC_ON_DEMAND:
+                static_ondemand_data = load_distributed_data(scenario, 'static', 'on-demand')
+                if static_ondemand_data:
+                    scenario_data['static_ondemand_error'] = static_ondemand_data['mean_error']
+                    scenario_data['static_ondemand_collisions'] = static_ondemand_data['total_collisions_mean']
+                    scenario_data['static_ondemand_final_error'] = static_ondemand_data['avg_error_mean'][-1] if len(static_ondemand_data['avg_error_mean']) > 0 else np.nan
+                    scenario_data['static_ondemand_min_distance'] = np.mean(static_ondemand_data['min_distances_mean'])
+            
+            if INCLUDE_STATIC_BVC:
+                static_bvc_data = load_distributed_data(scenario, 'static', 'BVC')
+                if static_bvc_data:
+                    scenario_data['static_bvc_error'] = static_bvc_data['mean_error']
+                    scenario_data['static_bvc_collisions'] = static_bvc_data['total_collisions_mean']
+                    scenario_data['static_bvc_final_error'] = static_bvc_data['avg_error_mean'][-1] if len(static_bvc_data['avg_error_mean']) > 0 else np.nan
+                    scenario_data['static_bvc_min_distance'] = np.mean(static_bvc_data['min_distances_mean'])
+            
+            comparison_data.append(scenario_data)
         
-        # Load distributed data
-        if INCLUDE_STATIC_ON_DEMAND:
-            static_ondemand_data = load_distributed_data(scenario, 'static', 'on-demand')
-            if static_ondemand_data:
-                scenario_data['static_ondemand_error'] = static_ondemand_data['mean_error']
-                scenario_data['static_ondemand_collisions'] = static_ondemand_data['total_collisions_mean']
-                scenario_data['static_ondemand_final_error'] = static_ondemand_data['avg_error_mean'][-1] if len(static_ondemand_data['avg_error_mean']) > 0 else np.nan
-                scenario_data['static_ondemand_min_distance'] = np.mean(static_ondemand_data['min_distances_mean'])
-        
-        if INCLUDE_STATIC_BVC:
-            static_bvc_data = load_distributed_data(scenario, 'static', 'BVC')
-            if static_bvc_data:
-                scenario_data['static_bvc_error'] = static_bvc_data['mean_error']
-                scenario_data['static_bvc_collisions'] = static_bvc_data['total_collisions_mean']
-                scenario_data['static_bvc_final_error'] = static_bvc_data['avg_error_mean'][-1] if len(static_bvc_data['avg_error_mean']) > 0 else np.nan
-                scenario_data['static_bvc_min_distance'] = np.mean(static_bvc_data['min_distances_mean'])
-        
-        comparison_data.append(scenario_data)
+        return comparison_data
     
-    # Calculate percentage improvements and statistics
-    print("\n" + "="*100)
-    print("NUMERICAL COMPARISON: STATIC GOAL SCENARIOS (1-3)")
-    print("="*100)
-    
-    # Create detailed per-scenario table
-    print(f"{'Scenario':<10} {'Central Error':<15} {'OnDemand Error':<15} {'BVC Error':<15} {'Central Coll':<15} {'OnDemand Coll':<15} {'BVC Coll':<15}")
-    print("-" * 100)
-    
-    per_scenario_improvements = []
-    
-    for data in comparison_data:
-        scenario = data['scenario']
+    def print_scenario_analysis(comparison_data, group_name):
+        """Print analysis for a group of scenarios."""
+        if not comparison_data:
+            print(f"No data available for {group_name}")
+            return None
         
-        # Error comparisons
-        central_err = data.get('central_error', np.nan)
-        ondemand_err = data.get('static_ondemand_error', np.nan)
-        bvc_err = data.get('static_bvc_error', np.nan)
+        # Calculate percentage improvements and statistics
+        print("\n" + "="*100)
+        print(f"NUMERICAL COMPARISON: {group_name.upper()}")
+        print("="*100)
         
-        # Collision comparisons  
-        central_coll = data.get('central_collisions', np.nan)
-        ondemand_coll = data.get('static_ondemand_collisions', np.nan)
-        bvc_coll = data.get('static_bvc_collisions', np.nan)
+        # Create detailed per-scenario table
+        print(f"{'Scenario':<10} {'Central Error':<15} {'OnDemand Error':<15} {'BVC Error':<15} {'Central Coll':<15} {'OnDemand Coll':<15} {'BVC Coll':<15}")
+        print("-" * 100)
         
-        print(f"{scenario:<10} {central_err:<15.4f} {ondemand_err:<15.4f} {bvc_err:<15.4f} {central_coll:<15.1f} {ondemand_coll:<15.1f} {bvc_coll:<15.1f}")
+        per_scenario_improvements = []
         
-        # Calculate per-scenario improvements
-        scenario_improvements = {'scenario': scenario}
+        for data in comparison_data:
+            scenario = data['scenario']
+            
+            # Error comparisons
+            central_err = data.get('central_error', np.nan)
+            ondemand_err = data.get('static_ondemand_error', np.nan)
+            bvc_err = data.get('static_bvc_error', np.nan)
+            
+            # Collision comparisons  
+            central_coll = data.get('central_collisions', np.nan)
+            ondemand_coll = data.get('static_ondemand_collisions', np.nan)
+            bvc_coll = data.get('static_bvc_collisions', np.nan)
+            
+            print(f"{scenario:<10} {central_err:<15.4f} {ondemand_err:<15.4f} {bvc_err:<15.4f} {central_coll:<15.1f} {ondemand_coll:<15.1f} {bvc_coll:<15.1f}")
+            
+            # Calculate per-scenario improvements
+            scenario_improvements = {'scenario': scenario}
+            
+            if not np.isnan(central_err) and not np.isnan(ondemand_err):
+                central_vs_ondemand_error = ((central_err - ondemand_err) / central_err) * 100
+                scenario_improvements['central_vs_ondemand_error'] = central_vs_ondemand_error
+            
+            if not np.isnan(central_err) and not np.isnan(bvc_err):
+                central_vs_bvc_error = ((central_err - bvc_err) / central_err) * 100
+                scenario_improvements['central_vs_bvc_error'] = central_vs_bvc_error
+            
+            if not np.isnan(ondemand_err) and not np.isnan(bvc_err):
+                ondemand_vs_bvc_error = ((ondemand_err - bvc_err) / ondemand_err) * 100
+                scenario_improvements['ondemand_vs_bvc_error'] = ondemand_vs_bvc_error
+            
+            if not np.isnan(central_coll) and not np.isnan(ondemand_coll):
+                central_vs_ondemand_coll = ((central_coll - ondemand_coll) / max(central_coll, 0.1)) * 100
+                scenario_improvements['central_vs_ondemand_collisions'] = central_vs_ondemand_coll
+            
+            if not np.isnan(central_coll) and not np.isnan(bvc_coll):
+                central_vs_bvc_coll = ((central_coll - bvc_coll) / max(central_coll, 0.1)) * 100
+                scenario_improvements['central_vs_bvc_collisions'] = central_vs_bvc_coll
+            
+            if not np.isnan(ondemand_coll) and not np.isnan(bvc_coll):
+                ondemand_vs_bvc_coll = ((ondemand_coll - bvc_coll) / max(ondemand_coll, 0.1)) * 100
+                scenario_improvements['ondemand_vs_bvc_collisions'] = ondemand_vs_bvc_coll
+            
+            per_scenario_improvements.append(scenario_improvements)
         
-        if not np.isnan(central_err) and not np.isnan(ondemand_err):
-            central_vs_ondemand_error = ((central_err - ondemand_err) / central_err) * 100
-            scenario_improvements['central_vs_ondemand_error'] = central_vs_ondemand_error
+        # Print detailed per-scenario improvements
+        print("\n" + "="*120)
+        print("PER-SCENARIO IMPROVEMENTS (Positive = Method performs better than baseline)")
+        print("="*120)
+        print(f"{'Scenario':<10} {'C vs OD Err':<12} {'C vs BVC Err':<13} {'OD vs BVC Err':<14} {'C vs OD Coll':<13} {'C vs BVC Coll':<14} {'Winner':<10}")
+        print("-" * 120)
         
-        if not np.isnan(central_err) and not np.isnan(bvc_err):
-            central_vs_bvc_error = ((central_err - bvc_err) / central_err) * 100
-            scenario_improvements['central_vs_bvc_error'] = central_vs_bvc_error
-        
-        if not np.isnan(ondemand_err) and not np.isnan(bvc_err):
-            ondemand_vs_bvc_error = ((ondemand_err - bvc_err) / ondemand_err) * 100
-            scenario_improvements['ondemand_vs_bvc_error'] = ondemand_vs_bvc_error
-        
-        if not np.isnan(central_coll) and not np.isnan(ondemand_coll):
-            central_vs_ondemand_coll = ((central_coll - ondemand_coll) / max(central_coll, 0.1)) * 100
-            scenario_improvements['central_vs_ondemand_collisions'] = central_vs_ondemand_coll
-        
-        if not np.isnan(central_coll) and not np.isnan(bvc_coll):
-            central_vs_bvc_coll = ((central_coll - bvc_coll) / max(central_coll, 0.1)) * 100
-            scenario_improvements['central_vs_bvc_collisions'] = central_vs_bvc_coll
-        
-        if not np.isnan(ondemand_coll) and not np.isnan(bvc_coll):
-            ondemand_vs_bvc_coll = ((ondemand_coll - bvc_coll) / max(ondemand_coll, 0.1)) * 100
-            scenario_improvements['ondemand_vs_bvc_collisions'] = ondemand_vs_bvc_coll
-        
-        # Add final error and safety metrics
-        scenario_improvements['central_final_error'] = data.get('central_final_error', np.nan)
-        scenario_improvements['ondemand_final_error'] = data.get('static_ondemand_final_error', np.nan)
-        scenario_improvements['bvc_final_error'] = data.get('static_bvc_final_error', np.nan)
-        scenario_improvements['central_min_distance'] = data.get('central_min_distance', np.nan)
-        scenario_improvements['ondemand_min_distance'] = data.get('static_ondemand_min_distance', np.nan)
-        scenario_improvements['bvc_min_distance'] = data.get('static_bvc_min_distance', np.nan)
-        
-        per_scenario_improvements.append(scenario_improvements)
-    
-    # Print detailed per-scenario improvements
-    print("\n" + "="*120)
-    print("PER-SCENARIO IMPROVEMENTS (Positive = Method performs better than baseline)")
-    print("="*120)
-    print(f"{'Scenario':<10} {'C vs OD Err':<12} {'C vs BVC Err':<13} {'OD vs BVC Err':<14} {'C vs OD Coll':<13} {'C vs BVC Coll':<14} {'Winner':<10}")
-    print("-" * 120)
-    
-    for imp in per_scenario_improvements:
-        scenario = imp['scenario']
-        c_od_err = imp.get('central_vs_ondemand_error', np.nan)
-        c_bvc_err = imp.get('central_vs_bvc_error', np.nan)
-        od_bvc_err = imp.get('ondemand_vs_bvc_error', np.nan)
-        c_od_coll = imp.get('central_vs_ondemand_collisions', np.nan)
-        c_bvc_coll = imp.get('central_vs_bvc_collisions', np.nan)
-        
-        # Determine winner based on balanced score (error + safety)
-        # Lower error is better (negative improvement means other method is better)
-        # Higher collision improvement is better (positive means centralized safer)
-        
-        # Score calculation: -error_improvement + 0.5*collision_improvement
-        central_score = 0
-        ondemand_score = 0
-        bvc_score = 0
-        
-        if not np.isnan(c_od_err):
-            ondemand_score += -c_od_err  # If c_od_err is negative, ondemand gets positive points
-            central_score += c_od_err    # If c_od_err is positive, central gets positive points
-        
-        if not np.isnan(c_bvc_err):
-            bvc_score += -c_bvc_err
-            central_score += c_bvc_err
-        
-        if not np.isnan(c_od_coll):
-            central_score += 0.3 * c_od_coll  # Weight collision safety lower than error
-            ondemand_score += 0.3 * (-c_od_coll)
-        
-        if not np.isnan(c_bvc_coll):
-            central_score += 0.3 * c_bvc_coll
-            bvc_score += 0.3 * (-c_bvc_coll)
-        
-        if not np.isnan(od_bvc_err):
-            bvc_score += -od_bvc_err
-            ondemand_score += od_bvc_err
-        
-        # Determine winner
-        scores = {'Central': central_score, 'OnDemand': ondemand_score, 'BVC': bvc_score}
-        winner = max(scores, key=scores.get)
-        
-        print(f"{scenario:<10} {c_od_err:<12.1f} {c_bvc_err:<13.1f} {od_bvc_err:<14.1f} {c_od_coll:<13.1f} {c_bvc_coll:<14.1f} {winner:<10}")
-    
-    # Calculate overall statistics
-    total_improvements = {'central_vs_ondemand_error': [], 'central_vs_bvc_error': [], 'ondemand_vs_bvc_error': [],
-                         'central_vs_ondemand_collisions': [], 'central_vs_bvc_collisions': [], 'ondemand_vs_bvc_collisions': []}
-    
-    for imp in per_scenario_improvements:
-        for key in total_improvements:
-            if key in imp and not np.isnan(imp[key]):
-                total_improvements[key].append(imp[key])
-    
-    # Print summary statistics
-    print("\n" + "="*100)
-    print("PERCENTAGE IMPROVEMENTS SUMMARY (Positive = Method performs better than baseline)")
-    print("="*100)
-    
-    if total_improvements['central_vs_ondemand_error']:
-        avg_improvement = np.mean(total_improvements['central_vs_ondemand_error'])
-        std_improvement = np.std(total_improvements['central_vs_ondemand_error'])
-        print(f"GOAL TRACKING ERROR:")
-        print(f"  Centralized vs Static/On-demand:  {avg_improvement:+7.2f}% ± {std_improvement:.2f}% {'(Central better)' if avg_improvement > 0 else '(On-demand better)'}")
-    
-    if total_improvements['central_vs_bvc_error']:
-        avg_improvement = np.mean(total_improvements['central_vs_bvc_error'])
-        std_improvement = np.std(total_improvements['central_vs_bvc_error'])
-        print(f"  Centralized vs Static/BVC:        {avg_improvement:+7.2f}% ± {std_improvement:.2f}% {'(Central better)' if avg_improvement > 0 else '(BVC better)'}")
-    
-    if total_improvements['ondemand_vs_bvc_error']:
-        avg_improvement = np.mean(total_improvements['ondemand_vs_bvc_error'])
-        std_improvement = np.std(total_improvements['ondemand_vs_bvc_error'])
-        print(f"  Static/On-demand vs Static/BVC:   {avg_improvement:+7.2f}% ± {std_improvement:.2f}% {'(On-demand better)' if avg_improvement > 0 else '(BVC better)'}")
-    
-    print(f"\nCOLLISION SAFETY:")
-    if total_improvements['central_vs_ondemand_collisions']:
-        avg_improvement = np.mean(total_improvements['central_vs_ondemand_collisions'])
-        std_improvement = np.std(total_improvements['central_vs_ondemand_collisions'])
-        print(f"  Centralized vs Static/On-demand:  {avg_improvement:+7.2f}% ± {std_improvement:.2f}% {'(Central safer)' if avg_improvement > 0 else '(On-demand safer)'}")
-    
-    if total_improvements['central_vs_bvc_collisions']:
-        avg_improvement = np.mean(total_improvements['central_vs_bvc_collisions'])
-        std_improvement = np.std(total_improvements['central_vs_bvc_collisions'])
-        print(f"  Centralized vs Static/BVC:        {avg_improvement:+7.2f}% ± {std_improvement:.2f}% {'(Central safer)' if avg_improvement > 0 else '(BVC safer)'}")
-    
-    if total_improvements['ondemand_vs_bvc_collisions']:
-        avg_improvement = np.mean(total_improvements['ondemand_vs_bvc_collisions'])
-        std_improvement = np.std(total_improvements['ondemand_vs_bvc_collisions'])
-        print(f"  Static/On-demand vs Static/BVC:   {avg_improvement:+7.2f}% ± {std_improvement:.2f}% {'(On-demand safer)' if avg_improvement > 0 else '(BVC safer)'}")
-    
-    # Export to CSV for further analysis
-    results_dir = './results'
-    os.makedirs(results_dir, exist_ok=True)
-    
-    import csv
-    
-    # Export detailed comparison data
-    csv_path = os.path.join(results_dir, 'numerical_comparison_static_scenarios.csv')
-    if comparison_data:
-        with open(csv_path, 'w', newline='') as csvfile:
-            fieldnames = comparison_data[0].keys()
-            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-            writer.writeheader()
-            for row in comparison_data:
-                writer.writerow(row)
-        print(f"\nDetailed data exported to: {csv_path}")
-    
-    # Export per-scenario improvements
-    improvements_csv_path = os.path.join(results_dir, 'per_scenario_improvements.csv')
-    if per_scenario_improvements:
-        with open(improvements_csv_path, 'w', newline='') as csvfile:
-            fieldnames = per_scenario_improvements[0].keys()
-            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-            writer.writeheader()
-            for row in per_scenario_improvements:
-                writer.writerow(row)
-        print(f"Per-scenario improvements exported to: {improvements_csv_path}")
-    
-    # Create a summary report
-    report_path = os.path.join(results_dir, 'numerical_comparison_summary.txt')
-    with open(report_path, 'w') as f:
-        f.write("NUMERICAL COMPARISON SUMMARY - STATIC GOAL SCENARIOS (1-3)\n")
-        f.write("="*70 + "\n\n")
-        
-        f.write("PER-SCENARIO BREAKDOWN:\n")
-        f.write(f"{'Scenario':<10} {'C vs OD Err':<12} {'C vs BVC Err':<13} {'OD vs BVC Err':<14} {'C vs OD Coll':<13} {'C vs BVC Coll':<14}\n")
-        f.write("-" * 80 + "\n")
         for imp in per_scenario_improvements:
             scenario = imp['scenario']
             c_od_err = imp.get('central_vs_ondemand_error', np.nan)
@@ -655,41 +533,157 @@ def create_numerical_comparison():
             od_bvc_err = imp.get('ondemand_vs_bvc_error', np.nan)
             c_od_coll = imp.get('central_vs_ondemand_collisions', np.nan)
             c_bvc_coll = imp.get('central_vs_bvc_collisions', np.nan)
-            f.write(f"{scenario:<10} {c_od_err:<12.1f} {c_bvc_err:<13.1f} {od_bvc_err:<14.1f} {c_od_coll:<13.1f} {c_bvc_coll:<14.1f}\n")
+            
+            # Determine winner based on balanced score (error + safety)
+            central_score = 0
+            ondemand_score = 0
+            bvc_score = 0
+            
+            if not np.isnan(c_od_err):
+                ondemand_score += -c_od_err
+                central_score += c_od_err
+            
+            if not np.isnan(c_bvc_err):
+                bvc_score += -c_bvc_err
+                central_score += c_bvc_err
+            
+            if not np.isnan(c_od_coll):
+                central_score += 0.3 * c_od_coll
+                ondemand_score += 0.3 * (-c_od_coll)
+            
+            if not np.isnan(c_bvc_coll):
+                central_score += 0.3 * c_bvc_coll
+                bvc_score += 0.3 * (-c_bvc_coll)
+            
+            if not np.isnan(od_bvc_err):
+                bvc_score += -od_bvc_err
+                ondemand_score += od_bvc_err
+            
+            # Determine winner
+            scores = {'Central': central_score, 'OnDemand': ondemand_score, 'BVC': bvc_score}
+            winner = max(scores, key=scores.get)
+            
+            print(f"{scenario:<10} {c_od_err:<12.1f} {c_bvc_err:<13.1f} {od_bvc_err:<14.1f} {c_od_coll:<13.1f} {c_bvc_coll:<14.1f} {winner:<10}")
         
-        f.write(f"\nGOAL TRACKING ERROR IMPROVEMENTS:\n")
+        # Calculate overall statistics
+        total_improvements = {'central_vs_ondemand_error': [], 'central_vs_bvc_error': [], 'ondemand_vs_bvc_error': [],
+                             'central_vs_ondemand_collisions': [], 'central_vs_bvc_collisions': [], 'ondemand_vs_bvc_collisions': []}
+        
+        for imp in per_scenario_improvements:
+            for key in total_improvements:
+                if key in imp and not np.isnan(imp[key]):
+                    total_improvements[key].append(imp[key])
+        
+        # Print summary statistics
+        print("\n" + "="*100)
+        print("PERCENTAGE IMPROVEMENTS SUMMARY (Positive = Method performs better than baseline)")
+        print("="*100)
+        
         if total_improvements['central_vs_ondemand_error']:
-            avg = np.mean(total_improvements['central_vs_ondemand_error'])
-            std = np.std(total_improvements['central_vs_ondemand_error'])
-            f.write(f"  Centralized vs Static/On-demand:  {avg:+7.2f}% ± {std:.2f}%\n")
+            avg_improvement = np.mean(total_improvements['central_vs_ondemand_error'])
+            std_improvement = np.std(total_improvements['central_vs_ondemand_error'])
+            print(f"GOAL TRACKING ERROR:")
+            print(f"  Centralized vs Static/On-demand:  {avg_improvement:+7.2f}% ± {std_improvement:.2f}% {'(Central better)' if avg_improvement > 0 else '(On-demand better)'}")
         
         if total_improvements['central_vs_bvc_error']:
-            avg = np.mean(total_improvements['central_vs_bvc_error'])
-            std = np.std(total_improvements['central_vs_bvc_error'])
-            f.write(f"  Centralized vs Static/BVC:        {avg:+7.2f}% ± {std:.2f}%\n")
+            avg_improvement = np.mean(total_improvements['central_vs_bvc_error'])
+            std_improvement = np.std(total_improvements['central_vs_bvc_error'])
+            print(f"  Centralized vs Static/BVC:        {avg_improvement:+7.2f}% ± {std_improvement:.2f}% {'(Central better)' if avg_improvement > 0 else '(BVC better)'}")
         
         if total_improvements['ondemand_vs_bvc_error']:
-            avg = np.mean(total_improvements['ondemand_vs_bvc_error'])
-            std = np.std(total_improvements['ondemand_vs_bvc_error'])
-            f.write(f"  Static/On-demand vs Static/BVC:   {avg:+7.2f}% ± {std:.2f}%\n")
+            avg_improvement = np.mean(total_improvements['ondemand_vs_bvc_error'])
+            std_improvement = np.std(total_improvements['ondemand_vs_bvc_error'])
+            print(f"  Static/On-demand vs Static/BVC:   {avg_improvement:+7.2f}% ± {std_improvement:.2f}% {'(On-demand better)' if avg_improvement > 0 else '(BVC better)'}")
         
-        f.write(f"\nCOLLISION SAFETY IMPROVEMENTS:\n")
+        print(f"\nCOLLISION SAFETY:")
         if total_improvements['central_vs_ondemand_collisions']:
-            avg = np.mean(total_improvements['central_vs_ondemand_collisions'])
-            std = np.std(total_improvements['central_vs_ondemand_collisions'])
-            f.write(f"  Centralized vs Static/On-demand:  {avg:+7.2f}% ± {std:.2f}%\n")
+            avg_improvement = np.mean(total_improvements['central_vs_ondemand_collisions'])
+            std_improvement = np.std(total_improvements['central_vs_ondemand_collisions'])
+            print(f"  Centralized vs Static/On-demand:  {avg_improvement:+7.2f}% ± {std_improvement:.2f}% {'(Central safer)' if avg_improvement > 0 else '(On-demand safer)'}")
         
         if total_improvements['central_vs_bvc_collisions']:
-            avg = np.mean(total_improvements['central_vs_bvc_collisions'])
-            std = np.std(total_improvements['central_vs_bvc_collisions'])
-            f.write(f"  Centralized vs Static/BVC:        {avg:+7.2f}% ± {std:.2f}%\n")
+            avg_improvement = np.mean(total_improvements['central_vs_bvc_collisions'])
+            std_improvement = np.std(total_improvements['central_vs_bvc_collisions'])
+            print(f"  Centralized vs Static/BVC:        {avg_improvement:+7.2f}% ± {std_improvement:.2f}% {'(Central safer)' if avg_improvement > 0 else '(BVC safer)'}")
         
         if total_improvements['ondemand_vs_bvc_collisions']:
-            avg = np.mean(total_improvements['ondemand_vs_bvc_collisions'])
-            std = np.std(total_improvements['ondemand_vs_bvc_collisions'])
-            f.write(f"  Static/On-demand vs Static/BVC:   {avg:+7.2f}% ± {std:.2f}%\n")
+            avg_improvement = np.mean(total_improvements['ondemand_vs_bvc_collisions'])
+            std_improvement = np.std(total_improvements['ondemand_vs_bvc_collisions'])
+            print(f"  Static/On-demand vs Static/BVC:   {avg_improvement:+7.2f}% ± {std_improvement:.2f}% {'(On-demand safer)' if avg_improvement > 0 else '(BVC safer)'}")
+        
+        return comparison_data, per_scenario_improvements
     
-    print(f"Summary report saved to: {report_path}")
+    # Analyze static scenarios
+    static_data = analyze_scenario_group(static_scenarios, "Static Scenarios")
+    static_results = print_scenario_analysis(static_data, "Static Scenarios (1-6)")
+    
+    # Analyze dynamic scenarios  
+    dynamic_data = analyze_scenario_group(dynamic_scenarios, "Dynamic Scenarios")
+    dynamic_results = print_scenario_analysis(dynamic_data, "Dynamic Scenarios (7-9)")
+    
+    # Export to CSV for further analysis
+    results_dir = './results'
+    os.makedirs(results_dir, exist_ok=True)
+    
+    import csv
+    
+    # Export static scenarios data
+    if static_results and static_results[0]:
+        static_csv_path = os.path.join(results_dir, 'numerical_comparison_static_scenarios.csv')
+        with open(static_csv_path, 'w', newline='') as csvfile:
+            fieldnames = static_results[0][0].keys()
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            writer.writeheader()
+            for row in static_results[0]:
+                writer.writerow(row)
+        print(f"\nStatic scenarios data exported to: {static_csv_path}")
+    
+    # Export dynamic scenarios data
+    if dynamic_results and dynamic_results[0]:
+        dynamic_csv_path = os.path.join(results_dir, 'numerical_comparison_dynamic_scenarios.csv')
+        with open(dynamic_csv_path, 'w', newline='') as csvfile:
+            fieldnames = dynamic_results[0][0].keys()
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            writer.writeheader()
+            for row in dynamic_results[0]:
+                writer.writerow(row)
+        print(f"Dynamic scenarios data exported to: {dynamic_csv_path}")
+    
+    # Create combined summary report
+    report_path = os.path.join(results_dir, 'numerical_comparison_summary.txt')
+    with open(report_path, 'w') as f:
+        f.write("NUMERICAL COMPARISON SUMMARY - STATIC AND DYNAMIC SCENARIOS\n")
+        f.write("="*70 + "\n\n")
+        
+        f.write("STATIC SCENARIOS (1-6):\n")
+        if static_results and static_results[0]:
+            f.write(f"{'Scenario':<10} {'Central Err':<12} {'OnDemand Err':<13} {'BVC Err':<10} {'Central Coll':<13} {'OnDemand Coll':<13} {'BVC Coll':<10}\n")
+            f.write("-" * 80 + "\n")
+            for data in static_results[0]:
+                scenario = data['scenario']
+                central_err = data.get('central_error', np.nan)
+                ondemand_err = data.get('static_ondemand_error', np.nan)
+                bvc_err = data.get('static_bvc_error', np.nan)
+                central_coll = data.get('central_collisions', np.nan)
+                ondemand_coll = data.get('static_ondemand_collisions', np.nan)
+                bvc_coll = data.get('static_bvc_collisions', np.nan)
+                f.write(f"{scenario:<10} {central_err:<12.4f} {ondemand_err:<13.4f} {bvc_err:<10.4f} {central_coll:<13.1f} {ondemand_coll:<13.1f} {bvc_coll:<10.1f}\n")
+        
+        f.write(f"\nDYNAMIC SCENARIOS (7-9):\n")
+        if dynamic_results and dynamic_results[0]:
+            f.write(f"{'Scenario':<10} {'Central Err':<12} {'OnDemand Err':<13} {'BVC Err':<10} {'Central Coll':<13} {'OnDemand Coll':<13} {'BVC Coll':<10}\n")
+            f.write("-" * 80 + "\n")
+            for data in dynamic_results[0]:
+                scenario = data['scenario']
+                central_err = data.get('central_error', np.nan)
+                ondemand_err = data.get('static_ondemand_error', np.nan)
+                bvc_err = data.get('static_bvc_error', np.nan)
+                central_coll = data.get('central_collisions', np.nan)
+                ondemand_coll = data.get('static_ondemand_collisions', np.nan)
+                bvc_coll = data.get('static_bvc_collisions', np.nan)
+                f.write(f"{scenario:<10} {central_err:<12.4f} {ondemand_err:<13.4f} {bvc_err:<10.4f} {central_coll:<13.1f} {ondemand_coll:<13.1f} {bvc_coll:<10.1f}\n")
+    
+    print(f"Combined summary report saved to: {report_path}")
     print("="*100)
 
 

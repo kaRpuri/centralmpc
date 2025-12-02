@@ -19,8 +19,8 @@ INCLUDE_PREDICTIVE_BVC = False
 
 # Parameters
 COLLISION_RADIUS = 0.2
-TIME_LIMIT = 10.0  # seconds
-AGENT_COUNTS = [4, 8, 16, 32, 64]  # Different agent counts for scalability analysis
+TIME_LIMIT = 30.0  # seconds
+AGENT_COUNTS = [4, 8, 16, 32]  # Different agent counts for scalability analysis
 RUNS = range(1, 4)  # 1 through 3
 
 
@@ -140,7 +140,7 @@ def get_method_style(method_name):
     styles = {
         'Centralized MPC': {'color': 'black', 'linestyle': '-', 'linewidth': 3},
         'Static/On-demand': {'color': 'blue', 'linestyle': '-', 'linewidth': 2},
-        'Static/BVC': {'color': 'blue', 'linestyle': '--', 'linewidth': 2},
+        'Static/BVC': {'color': 'green', 'linestyle': '--', 'linewidth': 2},
         'Reactive/On-demand': {'color': 'red', 'linestyle': '-', 'linewidth': 2},
         'Reactive/BVC': {'color': 'red', 'linestyle': '--', 'linewidth': 2},
         'Predictive/On-demand': {'color': 'green', 'linestyle': '-', 'linewidth': 2},
