@@ -1,4 +1,4 @@
-# Centralized MPC
+# Multi robot Centralized MPC
 
 A centralized Model Predictive Control (MPC) implementation for multi-agent path planning and collision avoidance in 3D space. This project implements a centralized controller that optimizes trajectories for multiple agents simultaneously while avoiding collisions and tracking dynamic goals.
 
