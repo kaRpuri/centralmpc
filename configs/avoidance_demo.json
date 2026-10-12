@@ -1,0 +1,79 @@
+{
+  "name": "avoidance_demo",
+  "num_agents": 4,
+  "horizon": 30,
+  "dt": 0.01,
+  "dt_plan": 0.2,
+  "sim_duration": 20.0,
+  "pos_min": [
+    -5.0,
+    -5.0,
+    0.0
+  ],
+  "pos_max": [
+    5.0,
+    5.0,
+    3.0
+  ],
+  "vel_max": 1.5,
+  "acc_max": 3.0,
+  "Q_pos": 50.0,
+  "Q_vel": 1.0,
+  "R": 0.1,
+  "Q_terminal": 20.0,
+  "goal_tolerance": 0.4,
+  "std_position": 0.00228682,
+  "std_velocity": 0.0109302,
+  "motion_type": "static",
+  "circular_radius": 2.0,
+  "circular_omega": 0.3,
+  "translation_velocity": 0.5,
+  "collision_radius": 0.2,
+  "avoidance_enabled": true,
+  "min_separation": 0.5,
+  "seed_base": 42,
+  "initial_positions": [
+    [
+      2.0,
+      0.0,
+      1.0
+    ],
+    [
+      0.0,
+      2.0,
+      1.0
+    ],
+    [
+      -2.0,
+      0.0,
+      1.0
+    ],
+    [
+      0.0,
+      -2.0,
+      1.0
+    ]
+  ],
+  "goal_positions": [
+    [
+      -2.0,
+      0.0,
+      1.0
+    ],
+    [
+      0.0,
+      -2.0,
+      1.0
+    ],
+    [
+      2.0,
+      0.0,
+      1.0
+    ],
+    [
+      0.0,
+      2.0,
+      1.0
+    ]
+  ]
+}
