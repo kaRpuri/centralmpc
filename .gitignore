@@ -7,3 +7,9 @@ dist/
 .ruff_cache/
 .venv/
 venv/
+
+# Bulk simulation output. Regenerate with `centralmpc run` / `centralmpc scale`.
+experiments/
+runs/
+goals.txt
+trajectories.txt
