@@ -113,7 +113,7 @@ positions; on the first solve it is the current position held constant.
 The slack $s_{ij}$ is penalized in the cost with a weight $w_s$:
 
 $$
-J_{\text{sep}} = w_s \sum_{i<j} \sum_{k=1}^{H} s_{ij}(k)^2 .
+J_{\text{sep}} = w_s \sum_{i \lt j} \sum_{k=1}^{H} s_{ij}(k)^2 .
 $$
 
 The slack is not cosmetic. Because the normals come from the previous plan,
