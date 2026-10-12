@@ -1,0 +1,62 @@
+[
+  {
+    "agents": 4,
+    "horizon": 16,
+    "med_ms": 16.65,
+    "p95_ms": 30.82,
+    "rate": 1.0,
+    "solves": 100,
+    "fails": 0,
+    "min_sep": 0.0635,
+    "collisions": 1,
+    "mean_err": 0.5261
+  },
+  {
+    "agents": 8,
+    "horizon": 16,
+    "med_ms": 25.13,
+    "p95_ms": 87.61,
+    "rate": 0.97,
+    "solves": 100,
+    "fails": 3,
+    "min_sep": 0.0321,
+    "collisions": 4,
+    "mean_err": 0.4176
+  },
+  {
+    "agents": 16,
+    "horizon": 16,
+    "med_ms": 34.02,
+    "p95_ms": 313.29,
+    "rate": 0.16,
+    "solves": 100,
+    "fails": 84,
+    "min_sep": 0.0254,
+    "collisions": 9,
+    "mean_err": 0.7405
+  },
+  {
+    "agents": 32,
+    "horizon": 16,
+    "med_ms": 42.73,
+    "p95_ms": 644.5,
+    "rate": 0.25,
+    "solves": 100,
+    "fails": 75,
+    "min_sep": 0.0258,
+    "collisions": 41,
+    "mean_err": 0.7464
+  },
+  {
+    "agents": 64,
+    "horizon": 16,
+    "med_ms": 269.11,
+    "p95_ms": 1359.99,
+    "rate": 0.19,
+    "solves": 100,
+    "fails": 81,
+    "min_sep": 0.0123,
+    "collisions": 182,
+    "mean_err": 0.9068
+  }
+]

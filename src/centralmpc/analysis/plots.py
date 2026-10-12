@@ -125,7 +125,7 @@ def plot_scaling(
     fig, (ax_time, ax_rate) = plt.subplots(1, 2, figsize=(11, 4))
 
     ax_time.plot(agent_counts, median_solve_ms, marker="o")
-    ax_time.set_xscale("log", base=2)
+    ax_time.set_xscale("log")
     ax_time.set_yscale("log")
     ax_time.set_xticks(agent_counts)
     ax_time.set_xticklabels([str(n) for n in agent_counts])
@@ -135,7 +135,7 @@ def plot_scaling(
     ax_time.grid(True, which="both", alpha=0.4)
 
     ax_rate.plot(agent_counts, [100 * r for r in success_rate], marker="o", color="green")
-    ax_rate.set_xscale("log", base=2)
+    ax_rate.set_xscale("log")
     ax_rate.set_xticks(agent_counts)
     ax_rate.set_xticklabels([str(n) for n in agent_counts])
     ax_rate.set_ylim(-5, 105)
@@ -153,6 +153,7 @@ def animate(
     fps: int = 20,
     max_frames: int = 200,
     trail: int = 150,
+    margin: float = 0.6,
 ) -> Path:
     """Render a 3D animation of a run to an animated GIF.
 
@@ -165,6 +166,9 @@ def animate(
         fps: Frames per second in the output.
         max_frames: Upper bound on frames written.
         trail: Number of past steps drawn behind each agent.
+        margin: Padding around the occupied volume, in metres. The axes are
+            fitted to where the agents and goals actually go rather than to
+            the whole workspace, which is usually much larger.
 
     Returns:
         The path written.
@@ -190,9 +194,12 @@ def animate(
     ]
     goal_dots = ax.plot([], [], [], "x", color="black", markersize=6, linestyle="none")[0]
 
-    ax.set_xlim(config.pos_min[0], config.pos_max[0])
-    ax.set_ylim(config.pos_min[1], config.pos_max[1])
-    ax.set_zlim(config.pos_min[2], config.pos_max[2])
+    occupied = np.concatenate([positions.reshape(-1, 3), result.goals.reshape(-1, 3)])
+    lower = np.maximum(occupied.min(axis=0) - margin, np.array(config.pos_min))
+    upper = np.minimum(occupied.max(axis=0) + margin, np.array(config.pos_max))
+    ax.set_xlim(lower[0], upper[0])
+    ax.set_ylim(lower[1], upper[1])
+    ax.set_zlim(lower[2], upper[2])
     ax.set_xlabel("x (m)")
     ax.set_ylabel("y (m)")
     ax.set_zlabel("z (m)")
