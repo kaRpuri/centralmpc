@@ -1,0 +1,51 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "centralmpc"
+version = "0.1.0"
+description = "Centralized model predictive control for multi-robot trajectory planning in 3D."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Kabir Puri" }]
+keywords = ["mpc", "multi-robot", "trajectory-optimization", "cvxpy"]
+classifiers = [
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Scientific/Engineering",
+]
+dependencies = [
+    "numpy>=2.0,<3",
+    "cvxpy>=1.6,<2",
+    "osqp>=0.6,<2",
+    "matplotlib>=3.2,<4",
+    "pillow>=9,<12",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8,<9",
+    "ruff>=0.6,<1",
+    "pre-commit>=3,<5",
+]
+
+[project.scripts]
+centralmpc = "centralmpc.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/kaRpuri/centralmpc"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "W"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
