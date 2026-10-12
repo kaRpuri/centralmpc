@@ -6,8 +6,6 @@ Centralized model predictive control for multi-robot trajectory planning in 3D.
 [![Python 3.10 | 3.11](https://img.shields.io/badge/python-3.10%20%7C%203.11-blue.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-All agents are planned together in a single quadratic program, solved once per
-replanning step and warm started from the previous solution.
 
 ![Four agents crossing with the separation constraint enabled](assets/demo.gif)
 
