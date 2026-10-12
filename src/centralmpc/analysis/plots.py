@@ -206,6 +206,7 @@ def animate(
     title = ax.set_title("")
 
     def update(frame_index: int) -> list:
+        """Draw one animation frame and return the artists that changed."""
         t = frames[frame_index]
         start = max(0, t - trail)
         for i in range(num_agents):

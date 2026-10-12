@@ -233,6 +233,7 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     def add_scenario_options(sub: argparse.ArgumentParser) -> None:
+        """Add the options shared by every command that runs a scenario."""
         sub.add_argument("--config", default="default", help="config name or path")
         sub.add_argument("--run", type=int, default=2, help="run number, seeds the noise")
         sub.add_argument("--duration", type=float, help="override sim_duration, in seconds")
