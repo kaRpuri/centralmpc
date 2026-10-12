@@ -57,13 +57,9 @@ control effort. The reference velocity is always zero, so the cost pulls each
 agent towards its goal and asks it to stop there:
 
 $$
-J = \sum_{k=0}^{H-1} \sum_{i=1}^{N}
-      \Big( Q_p \lVert p_i(k) - p_i^{\text{ref}}(k) \rVert^2
-          + Q_v \lVert v_i(k) \rVert^2 \Big)
-  + Q_T \sum_{i=1}^{N}
-      \Big( Q_p \lVert p_i(H) - p_i^{\text{ref}}(H) \rVert^2
-          + Q_v \lVert v_i(H) \rVert^2 \Big)
-  + R \sum_{k=0}^{H-1} \lVert U(k) \rVert^2 .
+J = \sum_{k=0}^{H-1} \sum_{i=1}^{N} \Big( Q_p \lVert p_i(k) - p_i^{\text{ref}}(k) \rVert^2 + Q_v \lVert v_i(k) \rVert^2 \Big) +
+Q_T \sum_{i=1}^{N} \Big( Q_p \lVert p_i(H) - p_i^{\text{ref}}(H) \rVert^2 + Q_v \lVert v_i(H) \rVert^2 \Big) +
+R \sum_{k=0}^{H-1} \lVert U(k) \rVert^2 .
 $$
 
 The terminal multiplier $Q_T$ scales both tracking weights at the last step.
