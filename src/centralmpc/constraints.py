@@ -90,6 +90,7 @@ def box_constraints(
 def separation_constraints(
     X: cp.Variable,
     normals: dict[tuple[int, int], cp.Parameter],
+    slack: cp.Variable | None,
     horizon: int,
     min_separation: float,
 ) -> list[cp.Constraint]:
@@ -98,27 +99,39 @@ def separation_constraints(
     For agents ``i`` and ``j`` at step ``k``, with a unit normal ``n`` taken
     from a reference trajectory, the constraint is
 
-        n . (p_i(k) - p_j(k)) >= min_separation
+        n . (p_i(k) - p_j(k)) >= min_separation - s(k)
 
     which is linear in the decision variables and so keeps the problem a QP.
-    Step 0 is skipped because it is already fixed by the initial state.
+    The slack ``s >= 0`` is penalized in the cost. It is needed because the
+    normals come from the previous plan: once two agents are already closer
+    than ``min_separation``, no reachable state satisfies the half space
+    within one timestep, and a hard constraint would make the QP infeasible
+    exactly when avoidance matters most. Pass ``slack=None`` for the hard
+    form. Step 0 is skipped because it is already fixed by the initial state.
 
     Args:
         X: Stacked state variable, shape (6N, horizon + 1).
         normals: Unit normal parameter per pair, each shape (3, horizon).
+        slack: Non-negative slack, shape (num_pairs, horizon), or None.
         horizon: Number of control intervals.
         min_separation: Required centre to centre distance, in metres.
 
     Returns:
-        One constraint per pair per step in 1..horizon.
+        One constraint per pair per step in 1..horizon, plus the slack sign
+        constraint when slack is used.
     """
     constraints: list[cp.Constraint] = []
-    for (i, j), normal in normals.items():
+    for pair_index, ((i, j), normal) in enumerate(normals.items()):
         pi = X[i * STATE_DIM : i * STATE_DIM + SPATIAL_DIM, :]
         pj = X[j * STATE_DIM : j * STATE_DIM + SPATIAL_DIM, :]
         for k in range(horizon):
             delta = pi[:, k + 1] - pj[:, k + 1]
-            constraints.append(normal[:, k] @ delta >= min_separation)
+            bound = min_separation
+            if slack is not None:
+                bound = bound - slack[pair_index, k]
+            constraints.append(normal[:, k] @ delta >= bound)
+    if slack is not None:
+        constraints.append(slack >= 0)
     return constraints
 
 

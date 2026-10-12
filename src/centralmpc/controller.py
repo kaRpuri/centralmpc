@@ -53,6 +53,8 @@ class ControllerConfig:
             default, which reproduces the original formulation exactly.
         min_separation: Required centre to centre distance when avoidance is
             enabled, in metres.
+        separation_penalty: Quadratic weight on the separation slack. Large
+            relative to Q_pos so that tracking yields to separation.
     """
 
     num_agents: int
@@ -68,6 +70,7 @@ class ControllerConfig:
     Q_terminal: float = 10.0
     avoidance_enabled: bool = False
     min_separation: float = 0.2
+    separation_penalty: float = 1.0e4
 
 
 @dataclass
@@ -108,6 +111,9 @@ class CentralMPC:
         self._normals: dict[tuple[int, int], cp.Parameter] = {
             pair: cp.Parameter((SPATIAL_DIM, cfg.horizon)) for pair in self._pairs
         }
+        self._slack: cp.Variable | None = (
+            cp.Variable((len(self._pairs), cfg.horizon)) if self._pairs else None
+        )
         self._reference: np.ndarray | None = None
         self._build_qp()
 
@@ -173,8 +179,9 @@ class CentralMPC:
             cfg.acc_max,
         )
         if cfg.avoidance_enabled:
+            cost += cfg.separation_penalty * cp.sum_squares(self._slack)
             constraints += separation_constraints(
-                self.X, self._normals, n_horizon, cfg.min_separation
+                self.X, self._normals, self._slack, n_horizon, cfg.min_separation
             )
 
         self.problem = cp.Problem(cp.Minimize(cost), constraints)
